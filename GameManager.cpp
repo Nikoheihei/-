@@ -5,7 +5,8 @@
 
 GameManager::GameManager() 
     : currentPlayerIndex(0), currentGameMode(SIMPLE_SINGLE), 
-      gameSteps(20), gameRunning(false), roundComplete(false) {
+      gameSteps(20), gameRunning(false), roundComplete(false),
+      currentRound(1), totalRounds(5) {
     // 初始化GameManager对象
     // 加载用户数据
     loadUserData();
@@ -17,6 +18,7 @@ void GameManager::initializeGame(GameMode mode) {
     currentPlayerIndex = 0;
     gameRunning = true;
     roundComplete = false;
+    currentRound = 1;
     
     // 根据游戏模式设置玩家数量
     players.clear();
@@ -68,6 +70,22 @@ void GameManager::renderGame() {
    
 }
 
+void GameManager::startNewRound() {
+    if (isMultiplayerMode()) {
+        // 切换玩家
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+    }
+    
+    // 重置回合完成标志
+    roundComplete = false;
+    
+    // 生成新的游戏数据
+    generateGameData();
+    
+    // 增加回合数
+    currentRound++;
+}
+
 void GameManager::submitPrediction(int playerID) {
     // 提交玩家的预测
     // 1. 结束计时
@@ -81,6 +99,21 @@ void GameManager::submitPrediction(int playerID) {
     
     // 4. 设置回合完成标志
     roundComplete = true;
+    
+    // 5. 如果所有玩家都完成了当前回合，开始新回合
+    if (isMultiplayerMode()) {
+        bool allPlayersComplete = true;
+        for (const auto& player : players) {
+            if (!roundComplete) {
+                allPlayersComplete = false;
+                break;
+            }
+        }
+        
+        if (allPlayersComplete && !isGameOver()) {
+            startNewRound();
+        }
+    }
 }
 
 void GameManager::calculateResults() {

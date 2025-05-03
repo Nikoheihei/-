@@ -28,6 +28,8 @@ private:
     int gameSteps;      // 轨迹的步数
     bool gameRunning;   // 游戏运行状态
     bool roundComplete; // 当前回合是否完成
+    int currentRound;   // 当前回合数
+    int totalRounds;    // 总回合数
 
 public:
     // 构造函数
@@ -89,4 +91,37 @@ public:
     
     // 检查当前回合是否完成
     bool isRoundComplete() const;
+    
+    // 判断是否为复杂模式
+    bool isComplexMode() const {
+        return currentGameMode == COMPLEX_SINGLE || currentGameMode == COMPLEX_MULTI;
+    }
+    
+    // 判断是否为多人模式
+    bool isMultiplayerMode() const {
+        return currentGameMode == SIMPLE_MULTI || currentGameMode == COMPLEX_MULTI;
+    }
+    
+    // 获取当前回合数
+    int getCurrentRound() const {
+        return currentRound;
+    }
+    
+    // 获取总回合数
+    int getTotalRounds() const {
+        return totalRounds;
+    }
+    
+    // 检查游戏是否结束
+    bool isGameOver() const {
+        return currentRound > totalRounds;
+    }
+    
+    // 开始新回合
+    void startNewRound();
+    
+    // 获取所有玩家
+    const std::vector<Player>& getPlayers() const {
+        return players;
+    }
 }; 
