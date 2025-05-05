@@ -28,6 +28,14 @@ private:
     int gameSteps;      // 轨迹的步数
     bool gameRunning;   // 游戏运行状态
     bool roundComplete; // 当前回合是否完成
+    int currentRound;   // 当前回合数
+    int totalRounds;    // 总回合数
+
+    // 轨迹步数范围配置
+    static const int MIN_SIMPLE_STEPS = 6;   // 简单模式最小步数
+    static const int MAX_SIMPLE_STEPS = 25;  // 简单模式最大步数
+    static const int MIN_COMPLEX_STEPS = 4;  // 复杂模式最小步数
+    static const int MAX_COMPLEX_STEPS = 15;  // 复杂模式最大步数
 
 public:
     // 构造函数
@@ -41,6 +49,23 @@ public:
     
     // 生成游戏数据（A和B的轨迹等）
     void generateGameData();
+
+    // 设置轨迹步数
+    void setGameSteps(int steps);
+    
+    // 获取轨迹步数
+    int getGameSteps() const {
+        return gameSteps;
+    }
+    
+    // 获取轨迹步数范围
+    int getMinSteps() const {
+        return isComplexMode() ? MIN_COMPLEX_STEPS : MIN_SIMPLE_STEPS;
+    }
+    
+    int getMaxSteps() const {
+        return isComplexMode() ? MAX_COMPLEX_STEPS : MAX_SIMPLE_STEPS;
+    }
     
     // 处理用户输入
     void handleUserInput(/* 可以根据实际情况添加参数 */);
@@ -89,4 +114,37 @@ public:
     
     // 检查当前回合是否完成
     bool isRoundComplete() const;
+    
+    // 判断是否为复杂模式
+    bool isComplexMode() const {
+        return currentGameMode == COMPLEX_SINGLE || currentGameMode == COMPLEX_MULTI;
+    }
+    
+    // 判断是否为多人模式
+    bool isMultiplayerMode() const {
+        return currentGameMode == SIMPLE_MULTI || currentGameMode == COMPLEX_MULTI;
+    }
+    
+    // 获取当前回合数
+    int getCurrentRound() const {
+        return currentRound;
+    }
+    
+    // 获取总回合数
+    int getTotalRounds() const {
+        return totalRounds;
+    }
+    
+    // 检查游戏是否结束
+    bool isGameOver() const {
+        return currentRound > totalRounds;
+    }
+    
+    // 开始新回合
+    void startNewRound();
+    
+    // 获取所有玩家
+    const std::vector<Player>& getPlayers() const {
+        return players;
+    }
 }; 

@@ -2,13 +2,30 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+const int step=5;
 
 GameManager::GameManager() 
     : currentPlayerIndex(0), currentGameMode(SIMPLE_SINGLE), 
-      gameSteps(20), gameRunning(false), roundComplete(false) {
+      gameSteps(step), gameRunning(false), roundComplete(false),
+      currentRound(1), totalRounds(5) {
     // 初始化GameManager对象
     // 加载用户数据
     loadUserData();
+}
+
+void GameManager::setGameSteps(int steps) {
+    // 根据游戏模式确定步数范围
+    int minSteps = getMinSteps();
+    int maxSteps = getMaxSteps();
+    
+    // 确保步数在有效范围内
+    if (steps < minSteps) {
+        gameSteps = minSteps;
+    } else if (steps > maxSteps) {
+        gameSteps = maxSteps;
+    } else {
+        gameSteps = steps;
+    }
 }
 
 void GameManager::initializeGame(GameMode mode) {
@@ -17,6 +34,7 @@ void GameManager::initializeGame(GameMode mode) {
     currentPlayerIndex = 0;
     gameRunning = true;
     roundComplete = false;
+    currentRound = 1;
     
     // 根据游戏模式设置玩家数量
     players.clear();
@@ -28,6 +46,9 @@ void GameManager::initializeGame(GameMode mode) {
         players.push_back(Player(0));
         players.push_back(Player(1));
     }
+    
+    // 重置gameSteps为默认值
+    gameSteps = getMinSteps(); // 使用模式对应的最小步数作为默认值
     
     // 生成游戏数据
     generateGameData();
@@ -46,10 +67,10 @@ void GameManager::generateGameData() {
     objectA.generateTrajectory(isDifficult, gameSteps);
     
     // 2. 生成B的相对轨迹
-    objectB.generateRelativeTrajectory(gameSteps, isDifficult);
+    objectA.generateRelativeTrajectory(gameSteps, isDifficult);
     
     // 3. 根据A的实际轨迹和B的相对轨迹计算B的实际轨迹
-    objectB.calculateActualTrajectory(objectA.getActualTrajectory());
+    objectA.calculateActualTrajectory();
 }
 
 void GameManager::handleUserInput(/* 参数 */) {
@@ -68,19 +89,50 @@ void GameManager::renderGame() {
    
 }
 
+void GameManager::startNewRound() {
+    if (isMultiplayerMode()) {
+        // 切换玩家
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+    }
+    
+    // 重置回合完成标志
+    roundComplete = false;
+    
+    // 生成新的游戏数据
+    generateGameData();
+    
+    // 增加回合数
+    currentRound++;
+}
+
 void GameManager::submitPrediction(int playerID) {
     // 提交玩家的预测
     // 1. 结束计时
     players[playerID].endTimer();
     
     // 2. 获取玩家的预测轨迹并设置给B
-    objectB.setPredictedTrajectory(players[playerID].getPrediction());
+    //objectB.predictedTrajectory = players[playerID].getPrediction();
     
     // 3. 计算结果
     calculateResults();
     
     // 4. 设置回合完成标志
     roundComplete = true;
+    
+    // 5. 如果所有玩家都完成了当前回合，开始新回合
+    if (isMultiplayerMode()) {
+        bool allPlayersComplete = true;
+        for (const auto& player : players) {
+            if (!roundComplete) {
+                allPlayersComplete = false;
+                break;
+            }
+        }
+        
+        if (allPlayersComplete && !isGameOver()) {
+            startNewRound();
+        }
+    }
 }
 
 void GameManager::calculateResults() {
