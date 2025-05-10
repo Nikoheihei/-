@@ -1,25 +1,37 @@
 #pragma once
 #include "Trajectory.h"
 #include <chrono>
+#include <iostream>
+#include <string>
+using namespace std;
 
 class Player {
 private:
-    int playerID;
-    double currentScore;
-    double highScore;
+    string name;
+    int totalScore;
     double timeTaken;  // 玩家做出预测所用的时间（秒）
-    Trajectory prediction;
     
     // 计时器相关变量
     std::chrono::time_point<std::chrono::steady_clock> startTime;
+    std::chrono::time_point<std::chrono::steady_clock>endTime;
     bool timerRunning;
+    
+    // 新增统计变量
+    int simpleModeWins = 0;
+    int simpleModeTotal = 0;
+    int complexModeWins = 0;
+    int complexModeTotal = 0;
 
 public:
     // 构造函数
-    Player(int id = 0);
-    
+    Player(string name) 
+    : name(name), totalScore(0), timeTaken(0.0), timerRunning(false) {
+    // 初始化玩家对象
+}
+    //提交成绩
+    void addScore(int score);
     // 获取玩家ID
-    int getPlayerID() const;
+    string getName() const;
     
     // 开始预测计时
     void startTimer();
@@ -27,27 +39,34 @@ public:
     // 结束预测计时并返回用时（秒）
     double endTimer();
     
-    // 记录预测轨迹
-    void setPrediction(const Trajectory& trajectory);
-    
-    // 获取预测轨迹
-    const Trajectory& getPrediction() const;
-    
-    // 计算得分（基于预测轨迹和实际轨迹的相似度）
-    void calculateScore(const Trajectory& actualTrajectory);
-    
     // 获取当前得分
-    double getCurrentScore() const;
+    int getTotalScore() const;
     
-    // 获取最高得分
-    double getHighScore() const;
     
     // 获取用时
     double getTimeTaken() const;
     
-    // 更新最高分（如果当前分数高于最高分）
-    bool updateHighScore();
-    
     // 重置玩家数据（用于新一轮游戏）
     void reset();
+    
+    // 新增统计方法
+    void setSimpleModeStats(int wins, int total) {
+        simpleModeWins = wins;
+        simpleModeTotal = total;
+    }
+    
+    void setComplexModeStats(int wins, int total) {
+        complexModeWins = wins;
+        complexModeTotal = total;
+    }
+    
+    void incrementSimpleModeWins() { simpleModeWins++; }
+    void incrementSimpleModeTotal() { simpleModeTotal++; }
+    void incrementComplexModeWins() { complexModeWins++; }
+    void incrementComplexModeTotal() { complexModeTotal++; }
+    
+    int getSimpleModeWins() const { return simpleModeWins; }
+    int getSimpleModeTotal() const { return simpleModeTotal; }
+    int getComplexModeWins() const { return complexModeWins; }
+    int getComplexModeTotal() const { return complexModeTotal; }
 }; 
