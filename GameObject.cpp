@@ -4,6 +4,7 @@
 #include <cstdlib> // 添加cstdlib头文件用于rand函数
 #include <algorithm> // 添加algorithm头文件用于std::min函数
 #include <vector>
+#include<iostream>
 
 using namespace std;
 
@@ -57,57 +58,7 @@ const GridCell& GameObject::getCurrentCell(Trajectory&trajectory) const {
     // 返回当前位置
     return trajectory.getCurrentCell();
 }
-
-// 添加一个辅助函数来检查移动是否会超出边界
-bool GameObject::wouldExceedBounds(const GridCell& cell, int direction, bool isSixDirection) {
-    GridCell newCell;
     
-    if (isSixDirection) {
-        switch (direction) {
-            case UP_RIGHT:
-                newCell = cell+hex_directions[UP_RIGHT];
-                break;
-            case DOWN_RIGHT:
-                newCell = cell+hex_directions[DOWN_RIGHT];
-                break;
-            case DOWN:
-                newCell = cell+hex_directions[DOWN];
-                break;
-            case DOWN_LEFT:
-                newCell = cell+hex_directions[DOWN_LEFT];
-                break;
-            case UP_LEFT:
-                newCell = cell+hex_directions[UP_LEFT];
-                break;
-            case UP:
-                newCell = cell+hex_directions[UP];
-                break;  
-            default:
-                return true; // 无效方向
-        }
-    } else {
-        switch (direction) {
-            case RIGHT:
-                newCell = cell+four_directions[RIGHT];
-                break;
-            case UP:
-                newCell = cell+four_directions[UP];
-                break;
-            case LEFT:
-                newCell = cell+four_directions[LEFT];
-                break;
-            case DOWN:
-                newCell = cell+four_directions[DOWN];
-                break;
-            default:
-                return true; // 无效方向
-        }
-    }
-    
-    // 检查新坐标是否在范围内，确保坐标在-15到15之间
-    return (newCell.getRow() > MAX_TRAJ_COORD || newCell.getRow() < MIN_TRAJ_COORD || 
-            newCell.getCol() > MAX_TRAJ_COORD || newCell.getCol() < MIN_TRAJ_COORD);
-}
 
 void GameObject::addCellBasedOnDirection(Trajectory& trajectory,const GridCell& cell, int direction, bool isSixDirection) {
     GridCell x;
@@ -177,133 +128,140 @@ bool checkIfExist(const Trajectory&trajectory,GridCell newgrid,const int directi
 }
 
 void GameObject::generateTrajectory(bool difficulty, int steps) {
+    // 添加随机种子刷新，确保每次调用都获得新的随机序列
+    srand(static_cast<unsigned int>(time(nullptr) * rand()));
+    
     // 清空现有轨迹
     actualTrajectory.clear();
     
     // 生成随机初始坐标（范围-15到15）
-    srand(static_cast<unsigned int>(time(0)));
     int startRow = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
     int startCol = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
     GridCell startCell(startRow, startCol);
     actualTrajectory.addCell(startCell);
     
-    // 记录上一次的方向，确保轨迹连续性
-    int lastDirection = -1;
+    // 使用回溯算法生成轨迹
+    int maxAttempts = 10;  // 最大尝试次数
+    bool success = false;
     
-    // 根据难度选择移动方式
-    if (difficulty) {
-        // 复杂模式：六方向移动
-        for (int i = 0; i < steps; i++) {
-            int direction;
-            
-            // 如果不是第一步，则确保方向与上一步相连
-            if (lastDirection >=0) {
-                // 生成与上一步相邻的方向，避免生成相反方向
-                do {
-                    direction = rand() % 6;
-                } while ((abs(direction-lastDirection)==3)||
-                    checkIfExist(actualTrajectory,actualTrajectory.getCurrentCell(),direction,difficulty)); 
-                    //||wouldExceedBounds(actualTrajectory.getCurrentCell(), direction, true));
-            } else {
-                //do {
-                    direction = rand() % 6;
-                //} while (wouldExceedBounds(actualTrajectory.getCurrentCell(), direction, true));
-            }
-            
-            lastDirection = direction;
-            removeSixDirection(actualTrajectory,getCurrentCell(actualTrajectory), direction);
+    for (int attempt = 0; attempt < maxAttempts && !success; attempt++) {
+        // 每次尝试使用新的随机种子
+        srand(static_cast<unsigned int>(time(nullptr) * rand() + attempt));
+        success = generateTrajectoryBacktrack(actualTrajectory, 0, steps, -1, difficulty);
+        
+        if (!success && attempt < maxAttempts - 1) {
+            // 如果失败且还有尝试机会，清空轨迹并重新添加起始点
+            actualTrajectory.clear();
+            actualTrajectory.addCell(startCell);
         }
-    } else {
-        // 简单模式：四方向移动
+    }
+    
+    // 如果多次尝试后仍然失败，生成一个简单的线性轨迹
+    if (!success) {
+        cout << "使用备用轨迹生成方法" << endl;
+        actualTrajectory.clear();
+        actualTrajectory.addCell(startCell);
+        
+        // 简单的直线轨迹生成
         for (int i = 0; i < steps; i++) {
-            int direction;
+            const GridCell& currentCell = actualTrajectory.getCurrentCell();
+            int row = currentCell.getRow();
+            int col = currentCell.getCol();
             
-            if (lastDirection >= 0) {
-                do {
-                    direction = rand() % 4;
-                } while (((direction==0&&lastDirection==3)||
-                        (direction==3&&lastDirection==0)||
-                        (direction==1&&lastDirection==2)||
-                        (direction==2&&lastDirection==1))||
-                        checkIfExist(actualTrajectory,actualTrajectory.getCurrentCell(),direction,difficulty));
-                        //||wouldExceedBounds(actualTrajectory.getCurrentCell(), direction, false));
+            // 交替水平和垂直移动
+            if (i % 2 == 0) {
+                // 确保在边界内
+                if (row + 1 <= MAX_TRAJ_COORD) {
+                    GridCell newCell(row + 1, col);
+                    actualTrajectory.addCell(newCell);
+                } else {
+                    GridCell newCell(row - 1, col);
+                    actualTrajectory.addCell(newCell);
+                }
             } else {
-                //do {
-                    direction = rand() % 4;
-                //} while (wouldExceedBounds(actualTrajectory.getCurrentCell(), direction, false));
+                // 确保在边界内
+                if (col + 1 <= MAX_TRAJ_COORD) {
+                    GridCell newCell(row, col + 1);
+                    actualTrajectory.addCell(newCell);
+                } else {
+                    GridCell newCell(row, col - 1);
+                    actualTrajectory.addCell(newCell);
+                }
             }
-            
-            lastDirection = direction;
-            removeFourDirection(actualTrajectory,getCurrentCell(actualTrajectory), direction);
         }
     }
 }
 
 void GameObject::generateRelativeTrajectory(int steps, bool difficulty) {
+    // 添加随机种子刷新，确保每次调用都获得新的随机序列
+    srand(static_cast<unsigned int>(time(nullptr) * rand() + 12345));
+    
     // 清空现有相对轨迹
     relativeTrajectory.clear();
     
     // 生成随机初始坐标（范围-15到15）
-    srand(static_cast<unsigned int>(time(0) + 100));
-    double startRow = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
-    double startCol = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
+    int startRow = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
+    int startCol = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
     GridCell startCell(startRow, startCol);
     relativeTrajectory.addCell(startCell);
     
-    // 记录上一次的方向，确保轨迹连续性
-    int lastDirection = -1;
+    // 使用回溯算法生成轨迹
+    int maxAttempts = 10;  // 最大尝试次数
+    bool success = false;
     
-    // 根据难度选择移动方式
-    if (difficulty) {
-        // 复杂模式：六方向移动
-        for (int i = 0; i < steps; i++) {
-            int direction;
-            
-            // 如果不是第一步，则确保方向与上一步相连
-            if (lastDirection >=0) {
-                // 生成与上一步相邻的方向，避免生成相反方向
-                do {
-                    direction = rand() % 6;
-                } while ((abs(direction-lastDirection)==3)||
-                    checkIfExist(relativeTrajectory,relativeTrajectory.getCurrentCell(),direction,difficulty)); 
-                    //||wouldExceedBounds(relativeTrajectory.getCurrentCell(), direction, true));
-            } else {
-               // do {
-                    direction = rand() % 6;
-                //} while (wouldExceedBounds(relativeTrajectory.getCurrentCell(), direction, true));
-            }
-            
-            lastDirection = direction;
-            removeSixDirection(relativeTrajectory,getCurrentCell(relativeTrajectory), direction);
+    for (int attempt = 0; attempt < maxAttempts && !success; attempt++) {
+        // 每次尝试使用新的随机种子
+        srand(static_cast<unsigned int>(time(nullptr) * rand() + 54321 + attempt));
+        success = generateTrajectoryBacktrack(relativeTrajectory, 0, steps, -1, difficulty);
+        
+        if (!success && attempt < maxAttempts - 1) {
+            // 如果失败且还有尝试机会，清空轨迹并重新添加起始点
+            relativeTrajectory.clear();
+            relativeTrajectory.addCell(startCell);
         }
-    } else {
-        // 简单模式：四方向移动
+    }
+    
+    // 如果多次尝试后仍然失败，生成一个简单的线性轨迹
+    if (!success) {
+        cout << "使用备用轨迹生成方法" << endl;
+        relativeTrajectory.clear();
+        relativeTrajectory.addCell(startCell);
+        
+        // 简单的直线轨迹生成
         for (int i = 0; i < steps; i++) {
-            int direction;
+            const GridCell& currentCell = relativeTrajectory.getCurrentCell();
+            int row = currentCell.getRow();
+            int col = currentCell.getCol();
             
-            if (lastDirection >= 0) {
-                do {
-                    direction = rand() % 4;
-                } while ((direction==0&&lastDirection==3)||
-                        (direction==3&&lastDirection==0)||
-                        (direction==1&&lastDirection==2)||
-                        (direction==2&&lastDirection==1)||
-                        checkIfExist(relativeTrajectory,relativeTrajectory.getCurrentCell(),direction,difficulty));
-                        //||wouldExceedBounds(relativeTrajectory.getCurrentCell(), direction, false));
+            // 交替水平和垂直移动，与generateTrajectory相反方向
+            if (i % 2 == 1) {
+                // 确保在边界内
+                if (row + 1 <= MAX_TRAJ_COORD) {
+                    GridCell newCell(row + 1, col);
+                    relativeTrajectory.addCell(newCell);
+                } else {
+                    GridCell newCell(row - 1, col);
+                    relativeTrajectory.addCell(newCell);
+                }
             } else {
-                //do {
-                    direction = rand() % 4;
-                //} while (wouldExceedBounds(relativeTrajectory.getCurrentCell(), direction, false));
+                // 确保在边界内
+                if (col + 1 <= MAX_TRAJ_COORD) {
+                    GridCell newCell(row, col + 1);
+                    relativeTrajectory.addCell(newCell);
+                } else {
+                    GridCell newCell(row, col - 1);
+                    relativeTrajectory.addCell(newCell);
+                }
             }
-            
-            lastDirection = direction;
-            removeFourDirection(relativeTrajectory,getCurrentCell(relativeTrajectory), direction);
         }
     }
 }
     
 
 void GameObject::calculateActualTrajectory() {
+    // 添加随机种子刷新，确保每次调用都获得新的随机起点
+    srand(static_cast<unsigned int>(time(nullptr) * rand() + 67890));
+    
     // 清空现有实际轨迹
     finalTrajectory.clear();
     
@@ -317,10 +275,9 @@ void GameObject::calculateActualTrajectory() {
     }
     
     // 随机生成实际轨迹的起始点（范围-15到15）
-    srand(static_cast<unsigned int>(time(0) + 200)); // 再次使用不同的随机种子
-    double startRow = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
-    double startCol = (rand() % (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
-    finalTrajectory.addCell(GridCell(startRow, startCol));
+double startRow = (rand()% (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
+double startCol = (rand()% (MAX_TRAJ_COORD - MIN_TRAJ_COORD + 1)) + MIN_TRAJ_COORD;
+finalTrajectory.addCell(GridCell(startRow, startCol));
     
     // 使用四方向移动生成实际轨迹，确保每次只移动1个单位
     int lastDirection = -1;
@@ -330,11 +287,6 @@ void GameObject::calculateActualTrajectory() {
                          actualTrajectory.getCell(i)-actualTrajectory.getCell(i-1)+
                          relativeTrajectory.getCell(i)-relativeTrajectory.getCell(i-1);
         
-        // 检查是否超出范围，如果超出则跳过
-        if (newCell.getRow() > MAX_TRAJ_COORD || newCell.getRow() < MIN_TRAJ_COORD || 
-            newCell.getCol() > MAX_TRAJ_COORD || newCell.getCol() < MIN_TRAJ_COORD) {
-            continue;
-        }
         
         finalTrajectory.addCell(newCell);
     }
@@ -354,5 +306,101 @@ const Trajectory& GameObject::getRelativeTrajectory() const {
 const Trajectory& GameObject::getActualTrajectory() const {
     // 返回相对轨迹
     return actualTrajectory;
+}
+
+bool GameObject::wouldExceedBounds(const GridCell& cell, int direction, bool isSixDirection) {
+    GridCell newCell = cell;
+    if (isSixDirection) {
+        switch (direction) {
+            case 0: newCell = cell + hex_directions[0]; break;
+            case 1: newCell = cell + hex_directions[1]; break;
+            case 2: newCell = cell + hex_directions[2]; break;
+            case 3: newCell = cell + hex_directions[3]; break;
+            case 4: newCell = cell + hex_directions[4]; break;
+            case 5: newCell = cell + hex_directions[5]; break;
+        }
+    } else {
+        switch (direction) {
+            case 0: newCell = cell + four_directions[0]; break;
+            case 1: newCell = cell + four_directions[1]; break;
+            case 2: newCell = cell + four_directions[2]; break;
+            case 3: newCell = cell + four_directions[3]; break;
+        }
+    }
+    
+    return (newCell.getRow() < MIN_TRAJ_COORD || newCell.getRow() > MAX_TRAJ_COORD ||
+            newCell.getCol() < MIN_TRAJ_COORD || newCell.getCol() > MAX_TRAJ_COORD);
+}
+
+bool GameObject::generateTrajectoryBacktrack(Trajectory& trajectory, int depth, int maxDepth, int lastDir, bool isComplex) {
+    // 达到目标深度，轨迹生成完成
+    if (depth >= maxDepth) {
+        return true;
+    }
+    
+    // 获取当前单元格
+    const GridCell& currentCell = trajectory.getCurrentCell();
+    
+    // 创建方向序列并随机打乱
+    vector<int> directions;
+    int numDirs = isComplex ? 6 : 4;
+    for (int i = 0; i < numDirs; i++) {
+        directions.push_back(i);
+    }
+    
+    // 简单随机化方向顺序
+    for (int i = 0; i < numDirs; i++) {
+        int j = rand() % numDirs;
+        swap(directions[i], directions[j]);
+    }
+    
+    // 尝试每个方向
+    for (int dir : directions) {
+        // 如果这是相反方向，跳过（避免来回走）
+        if (lastDir != -1) {
+            if (isComplex && abs(dir - lastDir) == 3) continue;
+            if (!isComplex && ((dir == 0 && lastDir == 3) ||
+                               (dir == 3 && lastDir == 0) ||
+                               (dir == 1 && lastDir == 2) ||
+                               (dir == 2 && lastDir == 1))) continue;
+        }
+        
+        // 如果新位置超出边界，跳过
+        if (wouldExceedBounds(currentCell, dir, isComplex)) continue;
+        
+        // 如果新位置已经在轨迹中，跳过（避免环路）
+        GridCell newCell;
+        if (isComplex) {
+            newCell = currentCell + hex_directions[dir];
+        } else {
+            newCell = currentCell + four_directions[dir];
+        }
+        bool cellExists = false;
+        for (size_t i = 0; i < trajectory.getLength(); i++) {
+            if (trajectory.getCell(i) == newCell) {
+                cellExists = true;
+                break;
+            }
+        }
+        if (cellExists) continue;
+        
+        // 添加新单元格
+        if (isComplex) {
+            removeSixDirection(trajectory, currentCell, dir);
+        } else {
+            removeFourDirection(trajectory, currentCell, dir);
+        }
+        
+        // 递归生成下一步
+        if (generateTrajectoryBacktrack(trajectory, depth + 1, maxDepth, dir, isComplex)) {
+            return true;
+        }
+        
+        // 回溯：移除最后添加的单元格
+        trajectory.getCells().pop_back();
+    }
+    
+    // 所有方向都尝试过但没有解决方案
+    return false;
 }
 

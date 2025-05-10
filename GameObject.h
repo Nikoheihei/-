@@ -30,6 +30,9 @@ public:
     // 生成相对轨迹
     void generateRelativeTrajectory(int steps, bool difficulty);
     
+    // 回溯法辅助函数
+    bool generateTrajectoryBacktrack(Trajectory& trajectory, int depth, int maxDepth, int lastDir, bool isComplex);
+    
     // 根据参考轨迹和相对轨迹计算实际轨迹
     void calculateActualTrajectory();
     
