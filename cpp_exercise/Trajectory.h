@@ -4,25 +4,35 @@
 
 class Trajectory {
 private:
-    std::vector<GridCell> cells;  // 存储构成轨迹的一系列网格单元
+    std::vector<GridCell> cells;  // 存储轨迹中的所有网格单元
+    GridCell currentCell;        // 当前位置
 
 public:
     // 构造函数
     Trajectory();
     
-    // 向轨迹中添加一个网格单元
+    // 添加一个网格单元到轨迹
     void addCell(const GridCell& cell);
     
-    // 返回包含所有网格单元的向量
+    // 获取轨迹中所有网格单元
     const std::vector<GridCell>& getCells() const;
     
-    // 返回轨迹中网格单元的数量
+    // 获取轨迹中所有网格单元（非const版本，允许修改）
+    std::vector<GridCell>& getCells();
+    
+    // 获取轨迹中网格单元的数量
     size_t getLength() const;
     
-    // 返回指定索引处的网格单元
+    // 获取指定索引处的网格单元
     GridCell getCell(size_t index) const;
     
-    // 计算两条轨迹的相似度（例如，重合的单元格比例）
+    // 获取当前位置
+    const GridCell& getCurrentCell() const;
+    
+    // 设置当前位置
+    void setCurrentCell(const GridCell& cell);
+    
+    // 计算与另一条轨迹的相似度
     double calculateSimilarity(const Trajectory& other) const;
     
     // 清空轨迹
